@@ -1,15 +1,26 @@
-import { OpenAIToolSet, Workspace } from 'composio-core';
+import { OpenAIToolSet } from 'composio-core';
 import { BACKSTORY, DESCRIPTION, GOAL } from '../prompts';
 import OpenAI from 'openai';
+
+if (!process.env.E2B_API_KEY) {
+    throw new Error("E2B_API_KEY environment variable is not set");
+}
+
+if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY environment variable is not set");
+}
+
+if (!process.env.COMPOSIO_API_KEY) {
+    throw new Error("COMPOSIO_API_KEY environment variable is not set");
+}
 
 // Initialize tool.
 const llm = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
+
 const composioToolset = new OpenAIToolSet({ 
-    workspaceConfig: Workspace.E2B({
-        apiKey: process.env.E2B_API_KEY,
-    })
+    apiKey: process.env.COMPOSIO_API_KEY,
 });
 
 export async function initSWEAgent(): Promise<{composioToolset: OpenAIToolSet; assistantThread: OpenAI.Beta.Thread; llm: OpenAI; tools: Array<any>}> {
@@ -29,7 +40,7 @@ export async function initSWEAgent(): Promise<{composioToolset: OpenAIToolSet; a
     });
 
     tools = tools.map((tool) => {
-        const updateNullToEmptyArray = (obj) => {
+        const updateNullToEmptyArray = (obj: Record<string, any>) => {
             for (const key in obj) {
                 if (obj[key] === null) {
                     obj[key] = [];

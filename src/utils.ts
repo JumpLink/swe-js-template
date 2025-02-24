@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { ComposioToolSet } from "composio-core/lib/sdk/base.toolset";
+import { ComposioToolSet } from "composio-core";
 import { nanoid } from "nanoid";
 
 type InputType = any;
@@ -47,12 +47,19 @@ function createGithubIssueValidator(owner: string, name: string, toolset: Compos
     }
 
     if (/^\d+$/.test(value)) {
-      const responseData = await toolset.executeAction('github_issues_get', {
-        owner,
-        repo: name,
-        issue_number: parseInt(value, 10),
+      const responseData = await toolset.executeAction({
+        action: 'github_issues_get',
+        params: {
+          owner,
+          repo: name,
+          issue_number: parseInt(value, 10),
+        }
       });
-      return responseData.body as string;
+
+      if (responseData.data && typeof responseData.data === 'object' && 'body' in responseData.data) {
+        return responseData.data.body as string;
+      }
+      throw new Error('Invalid response format from GitHub API');
     }
 
     return value;

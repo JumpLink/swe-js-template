@@ -1,4 +1,3 @@
-
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -32,16 +31,27 @@ async function main() {
     tool_choice: "required"
   });
  
-  await composioToolset.waitAndHandleAssistantToolCalls(llm as any, stream, assistantThread, "default");
+  await composioToolset.waitAndHandleAssistantToolCalls(llm, stream, assistantThread, "default");
 
-  const response = await composioToolset.executeAction("filetool_git_patch", {
+  const response = await composioToolset.executeAction({
+    action: "filetool_git_patch",
+    params: {}
   });
 
-  if (response.patch && response.patch?.length > 0) {
-    console.log('=== Generated Patch ===\n' + response.patch, response);
+  const patchData = response.data as { 
+    patch: string;
+    current_working_directory: string;
+  };
+
+  if (patchData.patch && patchData.patch.length > 0) {
+    console.log('=== Generated Patch ===\n' + patchData.patch, response);
     const branchName = getBranchNameFromIssue(issue);
-    const output = await composioToolset.executeAction("SHELL_EXEC_COMMAND", {
-      cmd: `cp -r ${response.current_working_directory} git_repo && cd git_repo && git config --global --add safe.directory '*' && git config --global user.name 'Utkarsh Dixit' && git config --global user.email utkarshdix02@gmail.com && git checkout -b ${branchName} && git commit -m 'feat: ${issue}' && git push origin ${branchName}`
+    
+    const output = await composioToolset.executeAction({
+      action: "SHELL_EXEC_COMMAND",
+      params: {
+        cmd: `cp -r ${patchData.current_working_directory} git_repo && cd git_repo && git config --global --add safe.directory '*' && git config --global user.name 'Utkarsh Dixit' && git config --global user.email utkarshdix02@gmail.com && git checkout -b ${branchName} && git commit -m 'feat: ${issue}' && git push origin ${branchName}`
+      }
     });
 
     // Wait for 2s
@@ -49,20 +59,21 @@ async function main() {
 
     console.log("Have pushed the code changes to the repo. Let's create the PR now", output);
 
-    await composioToolset.executeAction("GITHUB_PULLS_CREATE", {
-      owner: repo.split("/")[0],
-      repo: repo.split("/")[1],
-      head: branchName,
-      base: "master",
-      title: `SWE: ${issue}`
-    })
+    await composioToolset.executeAction({
+      action: "GITHUB_PULLS_CREATE",
+      params: {
+        owner: repo.split("/")[0],
+        repo: repo.split("/")[1],
+        head: branchName,
+        base: "master",
+        title: `SWE: ${issue}`
+      }
+    });
 
     console.log("Done! The PR has been created for this issue in " + repo);
   } else {
     console.log('No output available - no patch was generated :(');
   }
-
-  await composioToolset.workspace.close();
 }
 
 main();
